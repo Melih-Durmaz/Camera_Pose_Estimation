@@ -63,7 +63,7 @@ def visualize3D( camera_pose, camera_orientation, ax):
     plt.show()
 
 
-def add_frame(pts_color, camera_color):
+def add_frame(pts_color, camera_color, data_3d):
         # -- Get the extrinsic matrix and transform the points --
         H = np.eye(4, 4)
         pts = H * np.matrix([[0, 0, 0, 1], [0.1, 0.1, 0.3, 1], [-.1, .1, .3, 1], [.1, -.1, .3, 1], [-.1, -.1, .3, 1]]).\
@@ -108,26 +108,27 @@ def add_frame(pts_color, camera_color):
 
         # Plot correspondences points
         ax.scatter(np.array(x), np.array(y), np.array(z), c=pts_color, marker='o')
+        ax.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])
 
         plt.show()
 
 
 def main(name):
-    img = cv2.imread("img2.png")
+    img = cv2.imread("input/img3.png")
     size = img.shape
 
-    data_2d = np.load('vr2d.npy').astype(np.float)
+    data_2d = np.load('input/vr2d.npy').astype(np.float)
 
     print(data_2d.shape)
 
-    fig = plt.figure()
-    ax = plt.axes()
+    #fig = plt.figure()
+    #ax = plt.axes()
+#
+    #ax.scatter(data_2d[:, :, 0], data_2d[:, :, 1])
+#
+    #from mpl_toolkits.mplot3d import Axes3D
 
-    ax.scatter(data_2d[:, :, 0], data_2d[:, :, 1])
-
-    from mpl_toolkits.mplot3d import Axes3D
-
-    data_3d = np.load('vr3d.npy')
+    data_3d = np.load('input/vr3d.npy')
 
     print(data_3d.shape)
 
@@ -139,14 +140,16 @@ def main(name):
     # plt.show()
 
 
-
+    # The camera has no distortion
     dist_coeffs = np.zeros((4, 1))
 
-    camera_matrix = np.array([(100.0,   0.0, 960.0),
-                              (  0.0, 100.0, 540.0),
-                              (  0.0,   0.0,   1.0)
+
+    camera_matrix = np.array([(100.0,   0.0, 960.0),    # focal length,            0,           Cx
+                              (  0.0, 100.0, 540.0),    #            0, focal length,           Cy
+                              (  0.0,   0.0,   1.0)     #            0,            0, Aspect Ratio
                               ],
                               dtype="double")
+
 
     data_2d = np.reshape(data_2d, (data_2d.shape[0], data_2d.shape[2]))
     print("Solving PnP")
@@ -158,7 +161,12 @@ def main(name):
     rotation_matrix_inv     = cv2.invert(rotation_matrix)[1]
     translation_matrix_inv  = cv2.invert(translation_matrix)[1]
 
-    level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector, translation_vector,
+    rotation_vector_inv = cv2.Rodrigues(rotation_matrix_inv)[0]
+    translation_vector_inv = cv2.Rodrigues(translation_matrix_inv)[0]
+
+    # level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector, translation_vector,
+    #                                                 camera_matrix, dist_coeffs)
+    level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector_inv, translation_vector_inv,
                                                     camera_matrix, dist_coeffs)
     print("Solved PnP")
 
@@ -168,9 +176,9 @@ def main(name):
     # Orientation vector
     O = np.matmul(rotation_matrix_inv.T, np.array([0, 0, 1]).T)
 
-    # visualize3D(C, O, ax2)
+    visualize3D(C, O, ax2)
 
-    add_frame(colors.rgb2hex([1, 0, 0, 0.0]), colors.rgb2hex([1, 0, 0, 0.0]))
+    add_frame(colors.rgb2hex([1, 0, 0, 0.0]), colors.rgb2hex([1, 0, 0, 0.0]), data_3d)
 
     for p in data_2d:
         cv2.circle(img, (int(p[0]), int(p[1])), 3, (0, 0, 255), -1)
