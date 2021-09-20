@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from matplotlib.patches import FancyArrowPatch
-from mpl_toolkits.mplot3d import proj3d
+from mpl_toolkits.mplot3d import proj3d, Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import matplotlib.colors as colors
+
 
 class Arrow3D(FancyArrowPatch):
     '''
@@ -58,6 +61,55 @@ def visualize3D( camera_pose, camera_orientation, ax):
 
     # Show the plots
     plt.show()
+
+
+def add_frame(pts_color, camera_color):
+        # -- Get the extrinsic matrix and transform the points --
+        H = np.eye(4, 4)
+        pts = H * np.matrix([[0, 0, 0, 1], [0.1, 0.1, 0.3, 1], [-.1, .1, .3, 1], [.1, -.1, .3, 1], [-.1, -.1, .3, 1]]).\
+            transpose()
+
+        camera_pts = np.array([[0, 0, 0]])
+
+        fig = plt.figure()
+        ax = Axes3D(fig)
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+
+        # -- Specify the points to be drawn --
+        x = [pts[0, 1], pts[0, 2], pts[0, 4], pts[0, 3]]
+        y = [pts[1, 1], pts[1, 2], pts[1, 4], pts[1, 3]]
+        z = [pts[2, 1], pts[2, 2], pts[2, 4], pts[2, 3]]
+
+        # -- Create poly collection --
+        vertices = [list(zip(x, y, z))]
+        plane = Poly3DCollection(vertices)
+        plane.set_alpha(0.2)
+        plane.set_color(camera_color)
+
+        # plot the camera lines
+        ax.plot([pts[0, 0], pts[0, 1]], [pts[1, 0], pts[1, 1]], [pts[2, 0], pts[2, 1]], c=camera_color)
+        ax.plot([pts[0, 0], pts[0, 2]], [pts[1, 0], pts[1, 2]], [pts[2, 0], pts[2, 2]], c=camera_color)
+        ax.plot([pts[0, 0], pts[0, 3]], [pts[1, 0], pts[1, 3]], [pts[2, 0], pts[2, 3]], c=camera_color)
+        ax.plot([pts[0, 0], pts[0, 4]], [pts[1, 0], pts[1, 4]], [pts[2, 0], pts[2, 4]], c=camera_color)
+        ax.add_collection3d(plane)
+
+        pts = camera_pts.transpose()
+        _, w = pts.shape
+        pts = np.vstack([pts, np.ones([1, w])])
+
+        # Transform the correspondences points
+        pts = H * pts
+        x = pts[0, :]
+        y = pts[1, :]
+        z = pts[2, :]
+
+        # Plot correspondences points
+        ax.scatter(np.array(x), np.array(y), np.array(z), c=pts_color, marker='o')
+
+        plt.show()
 
 
 def main(name):
@@ -116,8 +168,9 @@ def main(name):
     # Orientation vector
     O = np.matmul(rotation_matrix_inv.T, np.array([0, 0, 1]).T)
 
-    visualize3D(C, O, ax2)
+    # visualize3D(C, O, ax2)
 
+    add_frame(colors.rgb2hex([1, 0, 0, 0.0]), colors.rgb2hex([1, 0, 0, 0.0]))
 
     for p in data_2d:
         cv2.circle(img, (int(p[0]), int(p[1])), 3, (0, 0, 255), -1)
