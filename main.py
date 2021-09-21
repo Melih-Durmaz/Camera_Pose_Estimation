@@ -1,12 +1,28 @@
+
+'''
+Autor: Muhammed Melih Durmaz
+Date: 2021.09.21
+
+This piece of code is trying it's best to estimate the position of the camera,
+given a 2D,3D correspondence data and at least 2 images.
+It deos provide a 6DOF pose estimate but it s not yet completely succesful.
+
+'''
+
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d, Axes3D
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import matplotlib.colors as colors
 
 
+'''
+This class is not written by me. It is used only for ease of visualisation
+Credits to Zongchang (Jim) Chen.
+GitHub Link: https://github.com/czcbangkai
+'''
 class Arrow3D(FancyArrowPatch):
     '''
     3D arrow class can be shown in matplotlib 3D model.
@@ -21,7 +37,7 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0], ys[0]),(xs[1], ys[1]))
         FancyArrowPatch.draw(self, renderer)
 
-def visualize3D( camera_pose, camera_orientation, ax):
+def visualize3D( camera_pose, camera_orientation, ax, fig):
     '''
     Visualize 3D model with Matplotlib 3D.
     Input:
@@ -29,15 +45,6 @@ def visualize3D( camera_pose, camera_orientation, ax):
     Output:
         None -
     '''
-
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-
-    # Equal the unit scale, some embellishment
-    max_unit_length = max(30, max(camera_pose[:2])) + 10
-    ax.set_xlim3d(-max_unit_length, max_unit_length)
-    ax.set_ylim3d(-max_unit_length, max_unit_length)
-    ax.set_zlim3d(-1, 100)
 
     # Decompose the camera coordinate
     arrow_length = camera_pose[2] * 1.5
@@ -51,69 +58,16 @@ def visualize3D( camera_pose, camera_orientation, ax):
 
     # Plot camera location
     ax.scatter([camera_pose[0]], [camera_pose[1]], [camera_pose[2]])
-    # label = '%s (%d, %d, %d)' % (ut.getImageName(image_path), camera_pose[0], camera_pose[1], camera_pose[2])
-    # ax.text(camera_pose[0], camera_pose[1], camera_pose[2], label)
     arrow = Arrow3D(xs, ys, zs, mutation_scale=5, lw=2, arrowstyle="-|>", color="k")
     ax.add_artist(arrow)
 
-    # Set axes unit length equal, some embellishment
-    # plt.gca().set_aspect('equal', adjustable='box')
+    plt.savefig("output/pose_estimate.png")
 
     # Show the plots
     plt.show()
 
 
-def add_frame(pts_color, camera_color, data_3d):
-        # -- Get the extrinsic matrix and transform the points --
-        H = np.eye(4, 4)
-        pts = H * np.matrix([[0, 0, 0, 1], [0.1, 0.1, 0.3, 1], [-.1, .1, .3, 1], [.1, -.1, .3, 1], [-.1, -.1, .3, 1]]).\
-            transpose()
-
-        camera_pts = np.array([[0, 0, 0]])
-
-        fig = plt.figure()
-        ax = Axes3D(fig)
-
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-
-        # -- Specify the points to be drawn --
-        x = [pts[0, 1], pts[0, 2], pts[0, 4], pts[0, 3]]
-        y = [pts[1, 1], pts[1, 2], pts[1, 4], pts[1, 3]]
-        z = [pts[2, 1], pts[2, 2], pts[2, 4], pts[2, 3]]
-
-        # -- Create poly collection --
-        vertices = [list(zip(x, y, z))]
-        plane = Poly3DCollection(vertices)
-        plane.set_alpha(0.2)
-        plane.set_color(camera_color)
-
-        # plot the camera lines
-        ax.plot([pts[0, 0], pts[0, 1]], [pts[1, 0], pts[1, 1]], [pts[2, 0], pts[2, 1]], c=camera_color)
-        ax.plot([pts[0, 0], pts[0, 2]], [pts[1, 0], pts[1, 2]], [pts[2, 0], pts[2, 2]], c=camera_color)
-        ax.plot([pts[0, 0], pts[0, 3]], [pts[1, 0], pts[1, 3]], [pts[2, 0], pts[2, 3]], c=camera_color)
-        ax.plot([pts[0, 0], pts[0, 4]], [pts[1, 0], pts[1, 4]], [pts[2, 0], pts[2, 4]], c=camera_color)
-        ax.add_collection3d(plane)
-
-        pts = camera_pts.transpose()
-        _, w = pts.shape
-        pts = np.vstack([pts, np.ones([1, w])])
-
-        # Transform the correspondences points
-        pts = H * pts
-        x = pts[0, :]
-        y = pts[1, :]
-        z = pts[2, :]
-
-        # Plot correspondences points
-        ax.scatter(np.array(x), np.array(y), np.array(z), c=pts_color, marker='o')
-        ax.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])
-
-        plt.show()
-
-
-def main(name):
+def main():
     img = cv2.imread("input/img3.png")
     size = img.shape
 
@@ -121,83 +75,68 @@ def main(name):
 
     print(data_2d.shape)
 
-    #fig = plt.figure()
-    #ax = plt.axes()
-#
-    #ax.scatter(data_2d[:, :, 0], data_2d[:, :, 1])
-#
-    #from mpl_toolkits.mplot3d import Axes3D
-
     data_3d = np.load('input/vr3d.npy')
 
     print(data_3d.shape)
 
     fig2 = plt.figure()
     ax2 = plt.axes(projection='3d')
-
-    ax2.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])  #, c=data_3d[:, :, 2])
-    ax2.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])  #, c=data_3d[:, :, 2])
-    # plt.show()
+    ax2.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])
+    ax2.scatter3D(data_3d[:, :, 0], data_3d[:, :, 1], data_3d[:, :, 2])
 
 
     # The camera has no distortion
     dist_coeffs = np.zeros((4, 1))
 
 
-    camera_matrix = np.array([(100.0,   0.0, 960.0),    # focal length,            0,           Cx
-                              (  0.0, 100.0, 540.0),    #            0, focal length,           Cy
-                              (  0.0,   0.0,   1.0)     #            0,            0, Aspect Ratio
+    camera_matrix = np.array([(100.0,   0.0, 960.0), # focal length,            0,           Cx
+                              (  0.0, 100.0, 540.0), #            0, focal length,           Cy
+                              (  0.0,   0.0,   1.0)  #            0,            0, Aspect Ratio
                               ],
                               dtype="double")
 
 
     data_2d = np.reshape(data_2d, (data_2d.shape[0], data_2d.shape[2]))
+
     print("Solving PnP")
+    # Calculate rotation and translation of the scene
     success, rotation_vector, translation_vector = cv2.solvePnP(data_3d, data_2d, camera_matrix, dist_coeffs, flags=0)
 
+    # Convert rotation vectors to matrices
     rotation_matrix = cv2.Rodrigues(rotation_vector)[0]
     translation_matrix = cv2.Rodrigues(translation_vector)[0]
 
+    # Invert scene matrices to get camera rotation and translation matrices
     rotation_matrix_inv     = cv2.invert(rotation_matrix)[1]
     translation_matrix_inv  = cv2.invert(translation_matrix)[1]
 
-    rotation_vector_inv = cv2.Rodrigues(rotation_matrix_inv)[0]
-    translation_vector_inv = cv2.Rodrigues(translation_matrix_inv)[0]
 
-    # level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector, translation_vector,
-    #                                                 camera_matrix, dist_coeffs)
-    level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector_inv, translation_vector_inv,
-                                                    camera_matrix, dist_coeffs)
     print("Solved PnP")
 
-    # C = -R.transpose() * T
+    # Camera translation vector
     C = np.matmul(-rotation_matrix_inv.transpose(), translation_vector)
 
-    # Orientation vector
+    # Camera rotation vector
     O = np.matmul(rotation_matrix_inv.T, np.array([0, 0, 1]).T)
 
-    visualize3D(C, O, ax2)
+    visualize3D(C, O, ax2, fig2)
 
-    add_frame(colors.rgb2hex([1, 0, 0, 0.0]), colors.rgb2hex([1, 0, 0, 0.0]), data_3d)
+    #
+    level_end_point2D, jacobian = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector, translation_vector,
+                                                    camera_matrix, dist_coeffs)
 
-    for p in data_2d:
-        cv2.circle(img, (int(p[0]), int(p[1])), 3, (0, 0, 255), -1)
-
-
+    # Project camera pose to the image
     point1 = (int(data_2d[0][0]), int(data_2d[0][1]))
-
     point2 = (int(level_end_point2D[0][0][0]), int(level_end_point2D[0][0][1]))
-
     cv2.line(img, point1, point2, (255, 255, 255), 2)
 
     # Display image
-
     cv2.imshow("Test", img)
     cv2.waitKey()
 
 
 if __name__ == '__main__':
-    main('PyCharm')
+    main()
 
 
 
